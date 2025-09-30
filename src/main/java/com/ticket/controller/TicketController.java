@@ -36,53 +36,31 @@ public class TicketController {
         return ResponseEntity.ok(ticket);
     }
     
+
     /**
-     * 基礎搶票（有超賣風險 - 用於測試對比）
+     * Redis 搶票
      */
-    @PostMapping("/{id}/purchase-basic")
-    public ResponseEntity<?> purchaseBasic(@PathVariable Long id, 
-                                          @RequestParam Integer quantity,
-                                          @RequestHeader("Authorization") String token) {
+    @PostMapping("/{id}/purchase-redis")
+    public ResponseEntity<?> purchaseWithRedis(@PathVariable Long id, @RequestParam Integer quantity, @RequestHeader("Authorization") String token) {
         try {
-            // 從 token 中提取用戶ID（暫時寫死，後面會實現）
-            Long userId = 1L; 
+            Long userId = 1L; // 暫時寫死
             
-            Order order = ticketService.purchaseTicketBasic(id, userId, quantity);
+            Order order = ticketService.purchaseTicketWithRedis(id, userId, quantity);
             return ResponseEntity.ok(order);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
     
     /**
-     * 樂觀鎖搶票（推薦）
+     * 初始化 Redis 庫存
      */
-    @PostMapping("/{id}/purchase-optimistic")
-    public ResponseEntity<?> purchaseOptimistic(@PathVariable Long id,
-                                               @RequestParam Integer quantity,
-                                               @RequestHeader("Authorization") String token) {
+    @PostMapping("/{id}/init-redis")
+    public ResponseEntity<?> initRedisStock(@PathVariable Long id) {
         try {
-            Long userId = 1L; // 暫時寫死
-            
-            Order order = ticketService.purchaseTicketWithOptimisticLock(id, userId, quantity);
-            return ResponseEntity.ok(order);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-    
-    /**
-     * 樂觀鎖搶票 + 重試機制（生產環境）
-     */
-    @PostMapping("/{id}/purchase-retry")
-    public ResponseEntity<?> purchaseWithRetry(@PathVariable Long id,
-                                              @RequestParam Integer quantity,
-                                              @RequestHeader("Authorization") String token) {
-        try {
-            Long userId = 1L; // 暫時寫死
-            
-            Order order = ticketService.purchaseTicketWithRetry(id, userId, quantity);
-            return ResponseEntity.ok(order);
+            ticketService.initRedisStock(id);
+            return ResponseEntity.ok("Redis 庫存初始化成功");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

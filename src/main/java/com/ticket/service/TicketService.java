@@ -16,10 +16,12 @@ public class TicketService {
     
     private final TicketRepository ticketRepository;
     private final OrderRepository orderRepository;
+    private final RedisService redisService;
     
-    public TicketService(TicketRepository ticketRepository, OrderRepository orderRepository) {
+    public TicketService(TicketRepository ticketRepository, OrderRepository orderRepository, RedisService redisService) {
         this.ticketRepository = ticketRepository;
         this.orderRepository = orderRepository;
+        this.redisService = redisService;
     }
     
     /**
@@ -43,114 +45,66 @@ public class TicketService {
     public Ticket createTicket(Ticket ticket) {
         return ticketRepository.save(ticket);
     }
-    
-    /**
-     * 基礎搶票 - 有超賣風險（用來對比）
-     * 問題：高併發時會超賣，多個請求同時讀到相同庫存
-     */
-    @Transactional
-    public Order purchaseTicketBasic(Long ticketId, Long userId, Integer quantity) {
-        Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new RuntimeException("票券不存在"));
-        
-        // 檢查庫存
-        if (ticket.getAvailableStock() < quantity) {
-            throw new RuntimeException("庫存不足");
-        }
-        
-        // 扣減庫存
-        ticket.setAvailableStock(ticket.getAvailableStock() - quantity);
-        ticketRepository.save(ticket);
-        
-        // 創建訂單
-        Order order = new Order();
-        order.setUserId(userId);
-        order.setTicketId(ticketId);
-        order.setQuantity(quantity);
-        order.setTotalAmount(ticket.getPrice().multiply(BigDecimal.valueOf(quantity)));
-        
-        return orderRepository.save(order);
-    }
 
 
     /**
-     * 樂觀鎖搶票 - 解決超賣問題
-     * 原理：每次更新時檢查版本號，如果版本號不匹配則拋出異常
+     * Redis 搶票 
+     * 先在 Redis 中原子減庫存，成功後再寫數據庫
      */
     @Transactional
-    public Order purchaseTicketWithOptimisticLock(Long ticketId, Long userId, Integer quantity) {
-        Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new RuntimeException("票券不存在"));
+    public Order purchaseTicketWithRedis(Long ticketId, Long userId, Integer quantity) {
+        // 1. 先在 Redis 中原子減庫存
+        Long remainingStock = redisService.decrementStock(ticketId, quantity);
         
-        // 檢查庫存
-        if (ticket.getAvailableStock() < quantity) {
+        if (remainingStock == null) {
+            throw new RuntimeException("票券不存在或未初始化庫存");
+        }
+        
+        if (remainingStock < 0) {
+            // 庫存不足，恢復 Redis 庫存
+            redisService.decrementStock(ticketId, -quantity);
             throw new RuntimeException("庫存不足");
         }
         
-        // 扣減庫存（這裡會自動檢查版本號）
-        ticket.setAvailableStock(ticket.getAvailableStock() - quantity);
         try {
-            ticketRepository.save(ticket); // 這裡會更新 version + 1
+            // 2. Redis 減庫存成功，再操作數據庫
+            Ticket ticket = ticketRepository.findById(ticketId)
+                    .orElseThrow(() -> new RuntimeException("票券不存在"));
+            
+            // 再次檢查庫存（雙重保障）
+            if (ticket.getAvailableStock() < quantity) {
+                // 恢復 Redis 庫存
+                redisService.decrementStock(ticketId, -quantity);
+                throw new RuntimeException("庫存不足");
+            }
+            
+            // 扣減數據庫庫存
+            ticket.setAvailableStock(ticket.getAvailableStock() - quantity);
+            ticketRepository.save(ticket);
+            
+            // 創建訂單
+            Order order = new Order();
+            order.setUserId(userId);
+            order.setTicketId(ticketId);
+            order.setQuantity(quantity);
+            order.setTotalAmount(ticket.getPrice().multiply(BigDecimal.valueOf(quantity)));
+            
+            return orderRepository.save(order);
+            
         } catch (Exception e) {
-            // 如果版本號衝突，會拋出異常
-            throw new RuntimeException("搶票失敗，請重試");
+            // 發生異常，恢復 Redis 庫存
+            redisService.decrementStock(ticketId, -quantity);
+            throw new RuntimeException("搶票失敗: " + e.getMessage());
         }
-        
-        // 創建訂單
-        Order order = new Order();
-        order.setUserId(userId);
-        order.setTicketId(ticketId);
-        order.setQuantity(quantity);
-        order.setTotalAmount(ticket.getPrice().multiply(BigDecimal.valueOf(quantity)));
-        
-        return orderRepository.save(order);
     }
     
+    
     /**
-     * 樂觀鎖搶票 + 重試機制（生產環境推薦）
-     * 原理：如果版本衝突，自動重試指定的次數
+     * 初始化 Redis 庫存（管理員用）
      */
-    @Transactional
-    public Order purchaseTicketWithRetry(Long ticketId, Long userId, Integer quantity) {
-        int maxRetries = 3;
-        int retryCount = 0;
-        
-        while (retryCount < maxRetries) {
-            try {
-                Ticket ticket = ticketRepository.findById(ticketId)
-                        .orElseThrow(() -> new RuntimeException("票券不存在"));
-                
-                if (ticket.getAvailableStock() < quantity) {
-                    throw new RuntimeException("庫存不足");
-                }
-                
-                // 扣減庫存
-                ticket.setAvailableStock(ticket.getAvailableStock() - quantity);
-                ticketRepository.save(ticket);
-                
-                // 創建訂單
-                Order order = new Order();
-                order.setUserId(userId);
-                order.setTicketId(ticketId);
-                order.setQuantity(quantity);
-                order.setTotalAmount(ticket.getPrice().multiply(BigDecimal.valueOf(quantity)));
-                
-                return orderRepository.save(order);
-                
-            } catch (Exception e) {
-                retryCount++;
-                if (retryCount == maxRetries) {
-                    throw new RuntimeException("搶票失敗，請稍後再試");
-                }
-                // 等待一小段時間後重試
-                try {
-                    Thread.sleep(100); // 100ms
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException("搶票被中斷");
-                }
-            }
-        }
-        throw new RuntimeException("搶票失敗");
+    public void initRedisStock(Long ticketId) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("票券不存在"));
+        redisService.setStock(ticketId, ticket.getAvailableStock());
     }
 }
