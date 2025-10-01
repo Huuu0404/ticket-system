@@ -17,7 +17,7 @@ services:
     image: redis:7-alpine
     container_name: ticket-redis
     ports:
-      - "6380:6379" 
+      - "6380:6379"
     command: redis-server --appendonly yes
 
   app:
@@ -26,7 +26,7 @@ services:
     working_dir: /app
     volumes:
       - .:/app
-    command: mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dspring.profiles.active=dev"
+    command: mvn spring-boot:run
     ports:
       - "8080:8080"
     depends_on:

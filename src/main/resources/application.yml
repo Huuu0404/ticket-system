@@ -1,6 +1,4 @@
 spring:
-  profiles:
-    active: dev
   datasource:
     url: jdbc:postgresql://postgres:5432/ticketdb
     username: postgres
@@ -14,6 +12,13 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+  # Redis 配置 - 強制設置
+  data:
+    redis:
+      host: redis
+      port: 6379
+      timeout: 2000ms
+      connect-timeout: 2000ms
   redis:
     host: redis
     port: 6379
@@ -23,6 +28,7 @@ spring:
         max-wait: -1ms
         max-idle: 8
         min-idle: 0
+      shutdown-timeout: 100ms
 
 server:
   port: 8080
@@ -31,7 +37,9 @@ logging:
   level:
     com.ticket: DEBUG
     org.springframework.security: DEBUG
+    org.springframework.data.redis: DEBUG
+    io.lettuce: TRACE
 
 jwt:
   secret: "mySuperSecretKeyForTicketSystem2024@!"
-  expiration: 86400000  
+  expiration: 86400000

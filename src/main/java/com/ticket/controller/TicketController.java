@@ -62,6 +62,7 @@ public class TicketController {
             ticketService.initRedisStock(id);
             return ResponseEntity.ok("Redis 庫存初始化成功");
         } catch (RuntimeException e) {
+            e.printStackTrace();
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
