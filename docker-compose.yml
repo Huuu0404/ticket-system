@@ -20,6 +20,13 @@ services:
       - "6380:6379"
     command: redis-server --appendonly yes
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: ticket-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"  # 管理界面: http://localhost:15672 (guest/guest)
+
   app:
     image: maven:3.9.2-eclipse-temurin-17
     container_name: ticket-app
@@ -32,6 +39,7 @@ services:
     depends_on:
       - postgres
       - redis
+      - rabbitmq
 
 volumes:
   pgdata:
