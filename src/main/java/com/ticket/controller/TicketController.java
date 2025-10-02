@@ -45,7 +45,7 @@ public class TicketController {
     }
     
     /**
-     * Redis + MQ 異步搶票（終極方案）
+     * Redis + MQ 異步搶票
      */
     @PostMapping("/{id}/purchase-async")
     public ResponseEntity<?> purchaseAsync(@PathVariable Long id, @RequestParam Integer quantity, @RequestHeader("Authorization") String token) {
@@ -95,6 +95,30 @@ public class TicketController {
         } catch (RuntimeException e) {
             e.printStackTrace();
             return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * 純數據庫樂觀鎖搶票（對比測試用）
+     */
+    @PostMapping("/{id}/purchase-db-only")
+    public ResponseEntity<?> purchaseDBOnly(@PathVariable Long id,
+                                        @RequestParam Integer quantity,
+                                        @RequestHeader("Authorization") String token) {
+        try {
+            Long userId = 1L; // 暫時寫死
+            
+            Order order = ticketService.purchaseTicketDBOnly(id, userId, quantity);
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "搶票成功",
+                "orderId", order.getId()
+            ));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", e.getMessage()
+            ));
         }
     }
 }
