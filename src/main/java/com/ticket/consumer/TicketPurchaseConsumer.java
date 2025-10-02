@@ -26,7 +26,7 @@ public class TicketPurchaseConsumer {
     
     @RabbitListener(queues = "ticket.purchase.queue")
     public void processPurchase(TicketPurchaseMessage message) {
-        System.out.println("🟡 開始處理訂單: " + message.getOrderSn());
+        System.out.println("開始處理訂單: " + message.getOrderSn());
         
         try {
             // 1. 檢查票券是否存在
@@ -38,7 +38,7 @@ public class TicketPurchaseConsumer {
                 // 庫存不足，恢復 Redis 並創建失敗訂單
                 redisService.incrementStock(message.getTicketId(), message.getQuantity());
                 createFailedOrder(message, "庫存不足");
-                System.out.println("❌ 訂單處理失敗 - 庫存不足: " + message.getOrderSn());
+                System.out.println("訂單處理失敗 - 庫存不足: " + message.getOrderSn());
                 return;
             }
             
@@ -49,13 +49,13 @@ public class TicketPurchaseConsumer {
             // 4. 創建成功訂單
             createSuccessOrder(message, ticket);
             
-            System.out.println("✅ 訂單處理成功: " + message.getOrderSn());
+            System.out.println("訂單處理成功: " + message.getOrderSn());
             
         } catch (Exception e) {
             // 處理失敗，恢復 Redis 並創建失敗訂單
             redisService.incrementStock(message.getTicketId(), message.getQuantity());
             createFailedOrder(message, "系統錯誤: " + e.getMessage());
-            System.out.println("❌ 訂單處理失敗 - 系統錯誤: " + message.getOrderSn() + ", 錯誤: " + e.getMessage());
+            System.out.println("訂單處理失敗 - 系統錯誤: " + message.getOrderSn() + ", 錯誤: " + e.getMessage());
         }
     }
     

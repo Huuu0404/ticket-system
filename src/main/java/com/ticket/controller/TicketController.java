@@ -102,9 +102,7 @@ public class TicketController {
      * 純數據庫樂觀鎖搶票（對比測試用）
      */
     @PostMapping("/{id}/purchase-db-only")
-    public ResponseEntity<?> purchaseDBOnly(@PathVariable Long id,
-                                        @RequestParam Integer quantity,
-                                        @RequestHeader("Authorization") String token) {
+    public ResponseEntity<?> purchaseDBOnly(@PathVariable Long id, @RequestParam Integer quantity, @RequestHeader("Authorization") String token) {
         try {
             Long userId = 1L; // 暫時寫死
             
