@@ -16,7 +16,6 @@
 * **Total Requests**: 50,000
 * **Available Tickets**: 100 tickets
 
-> **Test Environment**: Docker local environment, default configurations, no special optimizations
 
 | Metric                | Database-Only   | Redis + Message Queue | Improvement        |
 | --------------------- | --------------- | --------------------- | ------------------ |
@@ -33,9 +32,9 @@
 
 ### Data & Cache
 
-* PostgreSQL 15 - Primary database
-* Redis 7.4 - Inventory management and cache
-* RabbitMQ 3.13 - Message queue for async processing
+* PostgreSQL 15
+* Redis 7.4
+* RabbitMQ 3.13
 
 ### Infrastructure
 
