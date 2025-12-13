@@ -4,7 +4,7 @@ package com.ticket.service;
 import com.ticket.dto.TicketPurchaseMessage;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
-
+import java.util.UUID;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -66,6 +66,6 @@ public class TicketMQService {
      * 生成唯一訂單號
      */
     private String generateOrderSn() {
-        return "T" + System.currentTimeMillis() + String.format("%03d", (int)(Math.random() * 1000));
+        return "T" + UUID.randomUUID().toString().replace("-", "");
     }
 }

@@ -78,21 +78,13 @@ public class TicketPurchaseConsumer {
      * 創建失敗訂單
      */
     private void createFailedOrder(TicketPurchaseMessage message, String errorReason) {
-        try {
-            // 查找票券信息來計算金額
-            Ticket ticket = ticketRepository.findById(message.getTicketId()).orElse(null);
-            BigDecimal totalAmount = BigDecimal.ZERO;
-            
-            if (ticket != null) {
-                totalAmount = ticket.getPrice().multiply(BigDecimal.valueOf(message.getQuantity()));
-            }
-            
+        try {            
             Order order = new Order();
             order.setOrderSn(message.getOrderSn());
             order.setUserId(message.getUserId());
             order.setTicketId(message.getTicketId());
             order.setQuantity(message.getQuantity());
-            order.setTotalAmount(totalAmount);
+            order.setTotalAmount(BigDecimal.ZERO);
             order.setStatus(Order.OrderStatus.FAILED);
             order.setRemarks(errorReason);
             
