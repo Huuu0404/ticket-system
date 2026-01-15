@@ -50,17 +50,30 @@
 * hey
 
 ```bash
-git clone https://github.com/yourusername/ticket-system.git
+git clone git@github.com:Huuu0404/ticket-system.git
 cd ticket-system
-docker compose up
 
-chmod +x ticket-test.sh
+# Cleanup images and volumes
+docker system prune
+docker system prune -a --volumes
+
+# Start load testing environment
+docker compose up
 
 # Database-Only Mode
 ./ticket-test.sh db 100 50000 200
 
 # Redis + Message Queue Mode
 ./ticket-test.sh async 100 50000 200
+
+# Check database results
+docker exec ticket-postgres psql -U postgres -d ticketdb -c "
+SELECT order_sn, status, remarks, created_at 
+FROM orders 
+ORDER BY created_at;"
+
+# Check application logs for order status
+docker logs ticket-app | grep -E "(✅ 搶票請求已發送MQ|❌ 訂單處理失敗|✅ 訂單處理成功)"
 
 # Arguments:
 # 1: Inventory size
