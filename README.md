@@ -1,7 +1,8 @@
 # **System Architecture**
 
 ### Redis + Message Queue
-![未命名繪圖](https://github.com/user-attachments/assets/24479574-3f83-4845-9326-30563ff52d58)
+<img width="960" height="720" alt="image" src="https://github.com/user-attachments/assets/e97a3832-62c3-48ef-a020-8964bcd7aa6e" />
+
 
 
 
